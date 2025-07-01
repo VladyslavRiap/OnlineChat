@@ -6,6 +6,7 @@ import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { conncetDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
+import messagesRoute from "./routes/message.route.js";
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT;
@@ -18,6 +19,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use(express.json());
 app.use(cookieParser());
 app.use("/api/auth", authRoutes);
+app.use("/api/messages", messagesRoute);
 app.listen(5001, () => {
   console.log("server running on port:" + PORT);
   conncetDB();
