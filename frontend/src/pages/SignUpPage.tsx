@@ -1,6 +1,7 @@
 import {
   Eye,
   EyeOff,
+  Loader2,
   Lock,
   Mail,
   MessageSquare,
@@ -10,14 +11,35 @@ import {
 import AuthImage from "../components/AuthImage";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuthStore } from "../store/useAuthStore";
+import toast from "react-hot-toast";
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
-    fullname: "",
+    fullName: "",
     password: "",
     email: "",
     username: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const { signUp, isSignUp } = useAuthStore();
+
+  const validateForm = () => {
+    if (!formData.fullName.trim()) return toast.error("Full name is required");
+    if (!formData.email.trim()) return toast.error("Email is required");
+    if (!formData.username.trim()) return toast.error("username is required");
+    if (!/\S+@\S+\.\S+/.test(formData.email))
+      return toast.error("Invalid email format");
+    if (!formData.password) return toast.error("password is required");
+    if (formData.password.length < 8)
+      return toast.error("password must be at least 8 characters");
+    return true;
+  };
+  const handleSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const success = validateForm();
+    if (success === true) signUp(formData);
+  };
   return (
     <div className=" grid lg:grid-cols-2 min-h-screen">
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
@@ -33,7 +55,7 @@ const SignUpPage = () => {
               </p>
             </div>
           </div>
-          <form className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Full Name</span>
@@ -46,9 +68,9 @@ const SignUpPage = () => {
                   type="text"
                   placeholder="John Doe"
                   className={`input w-full input-bordered pl-10`}
-                  value={formData.fullname}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fullname: e.target.value })
+                  value={formData.fullName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFormData({ ...formData, fullName: e.target.value })
                   }
                 />
               </div>
@@ -67,7 +89,7 @@ const SignUpPage = () => {
                   placeholder="Username"
                   className={`input w-full input-bordered pl-10`}
                   value={formData.username}
-                  onChange={(e) =>
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFormData({ ...formData, username: e.target.value })
                   }
                 />
@@ -86,7 +108,7 @@ const SignUpPage = () => {
                   placeholder="JohnDoe@email.com"
                   className={`input w-full input-bordered pl-10`}
                   value={formData.email}
-                  onChange={(e) =>
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
                 />
@@ -105,7 +127,7 @@ const SignUpPage = () => {
                   placeholder="........"
                   className={`input w-full input-bordered pl-10`}
                   value={formData.password}
-                  onChange={(e) =>
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
                 />
@@ -122,8 +144,19 @@ const SignUpPage = () => {
                 </button>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary w-full">
-              Create Account
+            <button
+              type="submit"
+              className=" btn btn-primary w-full"
+              disabled={isSignUp}
+            >
+              {isSignUp ? (
+                <>
+                  <Loader2 className="size-5 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
           <div className="text-center">
