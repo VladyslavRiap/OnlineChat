@@ -35,18 +35,22 @@ interface AuthState {
   login: (data: loginData) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: FormData) => Promise<void>;
+  updateFullName: (fullName: string) => Promise<void>;
+  updateUsername: (username: string) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   authUser: null,
   isSignUp: false,
   isLoggingIn: false,
-  isChekingAuth: false,
+  isChekingAuth: true,
   isUpdatingProfile: false,
 
   checkAuth: async () => {
-    set({ isChekingAuth: true });
-
     try {
       const res = await axiosInstance.get<AuthUser>("/auth/check");
 
@@ -116,6 +120,49 @@ export const useAuthStore = create<AuthState>((set) => ({
       toast.error(errorMessage);
     } finally {
       set({ isUpdatingProfile: false });
+    }
+  },
+  updateFullName: async (fullName) => {
+    try {
+      const res = await axiosInstance.put<AuthUser>("/auth/update-fullname", {
+        fullName,
+      });
+      set({ authUser: res.data });
+      toast.success("Profile full name update successfully");
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Update name is failed";
+      toast.error(errorMessage);
+    }
+  },
+  updateUsername: async (username) => {
+    try {
+      const res = await axiosInstance.put<AuthUser>("/auth/update-username", {
+        username,
+      });
+      set({ authUser: res.data });
+      toast.success("Profile username update successfully");
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Update username is failed";
+      toast.error(errorMessage);
+    }
+  },
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      await axiosInstance.post<AuthUser>("/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+
+      toast.success("Profile password update successfully");
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Update password is failed";
+      toast.error(errorMessage);
     }
   },
 }));
