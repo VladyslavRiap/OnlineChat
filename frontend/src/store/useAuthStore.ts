@@ -2,9 +2,11 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
-
+import { io, Socket } from "socket.io-client";
+import { useChatStore } from "./useChatStore";
+const BASE_URL = "http://localhost:5001";
 interface AuthUser {
-  id: string;
+  _id: string;
   username: string;
   email: string;
   fullName: string;
@@ -29,6 +31,7 @@ interface AuthState {
   isSignUp: boolean;
   isChekingAuth: boolean;
   isUpdatingProfile: boolean;
+  socket: Socket | null;
   checkAuth: () => Promise<void>;
   signUp: (data: signUpData) => Promise<void>;
   isLoggingIn: boolean;
@@ -37,24 +40,29 @@ interface AuthState {
   updateProfile: (data: FormData) => Promise<void>;
   updateFullName: (fullName: string) => Promise<void>;
   updateUsername: (username: string) => Promise<void>;
+  connectSocket: () => void;
+  disconnectSocket: () => void;
+  updateOnlineStatus: (userIds: string[]) => void;
   changePassword: (
     currentPassword: string,
     newPassword: string
   ) => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   authUser: null,
   isSignUp: false,
   isLoggingIn: false,
   isChekingAuth: true,
   isUpdatingProfile: false,
+  socket: null,
 
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get<AuthUser>("/auth/check");
 
       set({ authUser: res.data });
+      get().connectSocket();
     } catch (error) {
       console.log("❌ checkAuth error:", error);
     } finally {
@@ -68,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const res = await axiosInstance.post<AuthUser>("/auth/signup", data);
       set({ authUser: res.data });
       toast.success("Account created scucsessfully");
+      get().connectSocket();
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
@@ -82,6 +91,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await axiosInstance.post<AuthUser>("/auth/login", data);
       set({ authUser: res.data });
+      get().connectSocket();
       toast.success("Logging in succcsessfully");
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
@@ -96,6 +106,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await axiosInstance.post<AuthUser>("/auth/logout");
       set({ authUser: null });
+      get().disconnectSocket();
       toast.success("Logout is succsessfully ");
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
@@ -164,5 +175,35 @@ export const useAuthStore = create<AuthState>((set) => ({
         axiosError.response?.data?.message || "Update password is failed";
       toast.error(errorMessage);
     }
+  },
+  connectSocket: () => {
+    const { authUser } = get();
+    if (!authUser || get().socket?.connected) return;
+
+    const socket: Socket = io(BASE_URL, {
+      query: { userId: authUser._id },
+    });
+
+    socket.connect();
+    set({ socket });
+
+    socket.on("getOnlineUsers", (userIds: string[]) => {
+      get().updateOnlineStatus(userIds);
+      useChatStore.getState().updateUsersOnlineStatus(userIds);
+    });
+  },
+
+  disconnectSocket: () => {
+    if (get().socket?.connected) get().socket?.disconnect();
+    set({ socket: null });
+  },
+
+  updateOnlineStatus: (userIds) => {
+    const { authUser } = get();
+    if (!authUser) return;
+
+    const isCurrentUserOnline = userIds.includes(authUser._id);
+    const updatedAuthUser = { ...authUser, isOnline: isCurrentUserOnline };
+    set({ authUser: updatedAuthUser });
   },
 }));
