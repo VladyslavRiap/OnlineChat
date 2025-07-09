@@ -13,7 +13,7 @@ import { upload } from "../lib/multer.js";
 
 const router = express.Router();
 router.get("/user", protectRoute, getUsersForSideBar);
-router.get(":id", protectRoute, getMessages);
+router.get("/:id", protectRoute, getMessages);
 router.post("/send/:id", protectRoute, upload.single("image"), sendMessage);
 router.patch("/:senderId/read-all", protectRoute, markMessageAsRead);
 

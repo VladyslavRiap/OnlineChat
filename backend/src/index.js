@@ -7,8 +7,10 @@ import { fileURLToPath } from "url";
 import { conncetDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messagesRoute from "./routes/message.route.js";
+import { app, server } from "./lib/socket.js";
+
 dotenv.config();
-const app = express();
+
 const PORT = process.env.PORT;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +22,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messagesRoute);
-app.listen(5001, () => {
+server.listen(5001, () => {
   console.log("server running on port:" + PORT);
   conncetDB();
 });
