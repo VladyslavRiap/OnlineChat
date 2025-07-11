@@ -5,7 +5,7 @@ import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 import type { Socket } from "socket.io-client";
 
-interface User {
+export interface User {
   _id: string;
   username: string;
   fullName: string;
@@ -14,13 +14,14 @@ interface User {
   lastSeen?: string;
 }
 
-interface Message {
+export interface Message {
   _id: string;
   senderId: string;
   receiverId: string;
   text: string;
   createdAt: string;
   image: string;
+  isRead: boolean;
 }
 
 interface ChatState {
@@ -37,6 +38,8 @@ interface ChatState {
   updateUsersOnlineStatus: (userIds: string[]) => void;
   subscribeToMessages: () => void;
   unSubscribeFromMessages: () => void;
+  lastMessagesMap: Record<string, Message | undefined>;
+  getLastMessagesForUsers: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -46,12 +49,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messageIsLoading: false,
   messages: [],
   socket: null,
+  lastMessagesMap: {},
 
   getUsers: async () => {
     set({ userIsLoading: true });
     try {
       const res = await axiosInstance.get<User[]>("/messages/user");
-      set({ users: res.data });
+      const currentOnlineIds = get()
+        .users.filter((u) => u.isOnline)
+        .map((u) => u._id);
+
+      const updatedUsers = res.data.map((user) => ({
+        ...user,
+        isOnline: currentOnlineIds.includes(user._id),
+      }));
+
+      set({ users: updatedUsers });
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
@@ -76,7 +89,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ messageIsLoading: false });
     }
   },
+  getLastMessagesForUsers: async () => {
+    try {
+      const res = await axiosInstance.get<{
+        [userId: string]: Message;
+      }>("/messages/last-messages");
 
+      set({ lastMessagesMap: res.data });
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Failed to fetch messages";
+      toast.error(errorMessage);
+    }
+  },
   sendMessage: async (messageData: FormData) => {
     const { selectedUser, messages } = get();
     if (!selectedUser) return;
@@ -87,6 +113,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messageData
       );
       set({ messages: [...messages, res.data] });
+      set((state) => ({
+        lastMessagesMap: {
+          ...state.lastMessagesMap,
+          [selectedUser._id]: res.data,
+        },
+      }));
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
@@ -107,14 +139,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
   },
   subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
     const socket = useAuthStore.getState().socket;
-    socket?.on("newMessage", (newMessage) => {
-      if (newMessage.senderId !== selectedUser._id) return;
-      set({ messages: [...get().messages, newMessage] });
+    if (!socket) return;
+
+    socket.off("newMessage");
+    socket.on("newMessage", (newMessage) => {
+      const { selectedUser, messages, lastMessagesMap } = get();
+      const authUser = useAuthStore.getState().authUser;
+      if (!authUser) return;
+
+      const isChatOpen =
+        selectedUser &&
+        (newMessage.senderId === selectedUser._id ||
+          newMessage.receiverId === selectedUser._id);
+
+      if (isChatOpen) {
+        set({ messages: [...messages, newMessage] });
+      }
+
+      const otherUserId =
+        newMessage.senderId === authUser._id
+          ? newMessage.receiverId
+          : newMessage.senderId;
+
+      set({
+        lastMessagesMap: {
+          ...lastMessagesMap,
+          [otherUserId]: newMessage,
+        },
+      });
     });
   },
+
   unSubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket?.off("newMessage");

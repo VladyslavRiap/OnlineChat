@@ -1,12 +1,13 @@
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import vite from "../assets/vite.svg";
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { formatLastSeen } from "../lib/utils";
+import { useMediaQuery } from "../lib/hooks";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, users } = useChatStore();
-  console.log(selectedUser);
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [user, setUser] = useState(selectedUser);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ const ChatHeader = () => {
               <img
                 src={
                   user?.profilePic
-                    ? `http://localhost:5001${user.profilePic}`
+                    ? `http://172.18.8.57:5001${user.profilePic}`
                     : vite
                 }
                 alt={user?.fullName}
@@ -48,9 +49,19 @@ const ChatHeader = () => {
             </div>
           </div>
         </div>
-        <button onClick={() => setSelectedUser(null)}>
-          <X />
-        </button>
+        {isMobile ? (
+          <button
+            onClick={() => {
+              setSelectedUser(null);
+            }}
+          >
+            <ChevronLeft />
+          </button>
+        ) : (
+          <button onClick={() => setSelectedUser(null)}>
+            <X />
+          </button>
+        )}
       </div>
     </div>
   );

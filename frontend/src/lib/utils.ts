@@ -12,11 +12,11 @@ export function formatMessageTime(date: string) {
 export function formatLastSeen(lastSeen: string) {
   const date = new Date(lastSeen);
   const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 60000); // в минутах
+  const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
 
   if (diff < 1) return "just now";
   if (diff < 60) return `${diff} min ago`;
   if (diff < 1440) return `${Math.floor(diff / 60)} hr ago`;
 
-  return date.toLocaleDateString(); // например "7/8/2025"
+  return date.toLocaleDateString();
 }

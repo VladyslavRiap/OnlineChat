@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
 import { io, Socket } from "socket.io-client";
 import { useChatStore } from "./useChatStore";
-const BASE_URL = "http://localhost:5001";
+const BASE_URL = "http://172.18.8.97:5001";
 interface AuthUser {
   _id: string;
   username: string;
@@ -186,7 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     socket.connect();
     set({ socket });
-
+    useChatStore.getState().subscribeToMessages();
     socket.on("getOnlineUsers", (userIds: string[]) => {
       get().updateOnlineStatus(userIds);
       useChatStore.getState().updateUsersOnlineStatus(userIds);

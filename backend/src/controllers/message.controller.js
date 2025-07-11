@@ -116,3 +116,39 @@ export const updateMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+export const getLastMessages = async (req, res) => {
+  const userId = req.user._id;
+
+  const messages = await Message.aggregate([
+    {
+      $match: {
+        $or: [{ senderId: userId }, { receiverId: userId }],
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+    {
+      $group: {
+        _id: {
+          $cond: [{ $eq: ["$senderId", userId] }, "$receiverId", "$senderId"],
+        },
+        lastMessage: { $first: "$$ROOT" },
+      },
+    },
+    {
+      $replaceRoot: {
+        newRoot: {
+          $mergeObjects: ["$lastMessage", { userId: "$_id" }],
+        },
+      },
+    },
+  ]);
+
+  const mapped = {};
+  messages.forEach((m) => {
+    mapped[m.userId] = m;
+  });
+
+  res.json(mapped);
+};
