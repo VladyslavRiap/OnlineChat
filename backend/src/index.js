@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 app.use(
   cors({
-    origin: "http://172.18.8.97:5173",
+    origin: process.env.FRONT_URL,
     credentials: true,
   })
 );

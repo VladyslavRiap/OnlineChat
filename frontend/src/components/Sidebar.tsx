@@ -16,21 +16,41 @@ const Sidebar = () => {
     userIsLoading,
     getLastMessagesForUsers,
     lastMessagesMap,
+    getUnreadCounts,
+    unreadCountMap,
   } = useChatStore();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
-  console.log(selectedUser);
+
   useEffect(() => {
     getUsers();
     getLastMessagesForUsers();
-  }, [getUsers, getLastMessagesForUsers]);
+    getUnreadCounts();
+  }, [getUsers, getLastMessagesForUsers, getUnreadCounts]);
+
+  const sortedUsers = [...users].sort((a, b) => {
+    const aLastMsg = lastMessagesMap[a._id];
+    const bLastMsg = lastMessagesMap[b._id];
+
+    if (aLastMsg && bLastMsg) {
+      return (
+        new Date(bLastMsg.createdAt).getTime() -
+        new Date(aLastMsg.createdAt).getTime()
+      );
+    }
+
+    if (bLastMsg) return 1;
+    if (aLastMsg) return -1;
+
+    return 0;
+  });
 
   if (userIsLoading) return <SidebarSkeleton />;
 
   return (
     <aside
       className={`h-full ${
-        isMobile ? "w-full border-l" : "w-20 lg:w-72 border-r"
+        isMobile ? "w-full border-l" : "w-20 lg:w-80 border-r"
       } border-base-300 flex flex-col transition-all duration-200`}
     >
       <div className="border-b border-base-300 w-full p-5">
@@ -40,8 +60,8 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="overflow-y-auto w-full py-3">
-        {users.map((user) => {
+      <div className="overflow-y-auto w-full ">
+        {sortedUsers.map((user) => {
           const lastMessage = lastMessagesMap[user._id];
           const isSelected = selectedUser?._id === user._id;
 
@@ -57,7 +77,7 @@ const Sidebar = () => {
                 <img
                   src={
                     user.profilePic
-                      ? `http://172.18.8.57:5001${user.profilePic}`
+                      ? `${import.meta.env.VITE_BACKEND_URL}${user.profilePic}`
                       : vite
                   }
                   alt={user.username}
@@ -83,12 +103,17 @@ const Sidebar = () => {
                 </div>
 
                 {lastMessage && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <p className="text-sm text-primary truncate">
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-primary truncate flex flex-auto justify-between">
                       {lastMessage.text || "📷 Image"}
                     </p>
                     {lastMessage.isRead && (
                       <CheckCheck className="size-3 text-blue-400" />
+                    )}
+                    {(unreadCountMap?.[user._id] ?? 0) > 0 && (
+                      <span className="text-[10px] font-semibold bg-red-500 text-white rounded-full px-2 py-0.5 leading-none">
+                        {unreadCountMap[user._id]}
+                      </span>
                     )}
                   </div>
                 )}
@@ -107,12 +132,17 @@ const Sidebar = () => {
                     )}
                   </div>
                   {lastMessage && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <p className="text-sm text-primary truncate ">
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-primary truncate flex flex-auto">
                         {lastMessage.text || "📷 Image"}
                       </p>
                       {lastMessage.isRead && (
                         <CheckCheck className="size-3 text-blue-400" />
+                      )}
+                      {(unreadCountMap?.[user._id] ?? 0) > 0 && (
+                        <span className="text-[10px] font-semibold bg-red-500 text-white rounded-full px-2 py-0.5 leading-none">
+                          {unreadCountMap[user._id]}
+                        </span>
                       )}
                     </div>
                   )}

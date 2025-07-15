@@ -18,9 +18,9 @@ const HomePage = () => {
   );
 
   return (
-    <div className="lg:h-screen h-fit bg-base-300/40">
-      <div className="flex items-center justify-center pt-20 px-4">
-        <div className="bg-base-100 rounded-lg shadow-xl w-full max-w-6xl lg:h-[calc(100vh-8rem)] h-[calc(100vh-11rem)]">
+    <div className="lg:h-screen h-[100dvh] bg-base-300/40">
+      <div className="flex items-center justify-center pt-20 lg:px-4">
+        <div className="bg-base-100 rounded-lg shadow-xl w-full max-w-6xl lg:h-[calc(100vh-8rem)] h-[calc(100dvh-5rem)]">
           <div className="flex h-full overflow-hidden">
             {isMobile ? mobileView : desktopView}
           </div>

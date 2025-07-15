@@ -101,7 +101,9 @@ const ProfilePage = () => {
                   selectedImg
                     ? selectedImg
                     : authUser?.profilePic
-                    ? `http://localhost:5001${authUser.profilePic}`
+                    ? `${import.meta.env.VITE_BACKEND_URL}${
+                        authUser.profilePic
+                      }`
                     : logo
                 }
                 alt="Profile"

@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
 import { io, Socket } from "socket.io-client";
 import { useChatStore } from "./useChatStore";
-const BASE_URL = "http://172.18.8.97:5001";
+const BASE_URL = import.meta.env.VITE_BACKEND_URL;
 interface AuthUser {
   _id: string;
   username: string;

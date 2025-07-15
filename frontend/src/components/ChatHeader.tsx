@@ -16,7 +16,7 @@ const ChatHeader = () => {
   }, [users, selectedUser]);
 
   return (
-    <div className="p-2.5 border-b border-base-300">
+    <div className="p-2.5 border-b bg-base-100 border-base-300 z-50">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="avatar">
@@ -24,7 +24,7 @@ const ChatHeader = () => {
               <img
                 src={
                   user?.profilePic
-                    ? `http://172.18.8.57:5001${user.profilePic}`
+                    ? `${import.meta.env.VITE_BACKEND_URL}${user.profilePic}`
                     : vite
                 }
                 alt={user?.fullName}

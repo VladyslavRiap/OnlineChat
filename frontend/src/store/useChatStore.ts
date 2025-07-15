@@ -40,6 +40,10 @@ interface ChatState {
   unSubscribeFromMessages: () => void;
   lastMessagesMap: Record<string, Message | undefined>;
   getLastMessagesForUsers: () => Promise<void>;
+  markMessagesAsRead: (senderId: string) => Promise<void>;
+  unreadCountMap: Record<string, number>;
+  getUnreadCounts: () => Promise<void>;
+  deleteMessage: (messageId: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -50,6 +54,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   socket: null,
   lastMessagesMap: {},
+  unreadCountMap: {},
 
   getUsers: async () => {
     set({ userIsLoading: true });
@@ -142,9 +147,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
+    socket.off("updateReadStatus");
+    socket.off("updateUnreadCounts");
+    socket.off("updateLastMessage");
+    socket.off("messageDeleted");
     socket.off("newMessage");
+
+    socket.on("updateReadStatus", ({ userId }) => {
+      set((state) => ({
+        messages: state.messages.map((msg) =>
+          msg.receiverId === userId ? { ...msg, isRead: true } : msg
+        ),
+      }));
+    });
+
+    socket.on("updateUnreadCounts", (counts) => {
+      set({ unreadCountMap: counts });
+    });
+
+    socket.on("updateLastMessage", ({ userId, lastMessage }) => {
+      set((state) => ({
+        lastMessagesMap: {
+          ...state.lastMessagesMap,
+          [userId]: lastMessage,
+        },
+      }));
+    });
+
+    socket.on("messageDeleted", ({ messageId, senderId, receiverId }) => {
+      const authUser = useAuthStore.getState().authUser;
+      if (!authUser) return;
+
+      const { selectedUser } = get();
+      const currentChatUserId = selectedUser?._id;
+
+      if (currentChatUserId === senderId || currentChatUserId === receiverId) {
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg._id !== messageId),
+        }));
+      }
+
+      get().getLastMessagesForUsers();
+    });
+
     socket.on("newMessage", (newMessage) => {
-      const { selectedUser, messages, lastMessagesMap } = get();
+      const { selectedUser, messages, lastMessagesMap, unreadCountMap } = get();
       const authUser = useAuthStore.getState().authUser;
       if (!authUser) return;
 
@@ -153,14 +200,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         (newMessage.senderId === selectedUser._id ||
           newMessage.receiverId === selectedUser._id);
 
-      if (isChatOpen) {
-        set({ messages: [...messages, newMessage] });
-      }
-
       const otherUserId =
         newMessage.senderId === authUser._id
           ? newMessage.receiverId
           : newMessage.senderId;
+
+      if (isChatOpen) {
+        set({ messages: [...messages, newMessage] });
+      } else {
+        set({
+          unreadCountMap: {
+            ...unreadCountMap,
+            [otherUserId]: (unreadCountMap[otherUserId] || 0) + 1,
+          },
+        });
+      }
 
       set({
         lastMessagesMap: {
@@ -174,5 +228,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
   unSubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket?.off("newMessage");
+  },
+  deleteMessage: async (messageId) => {
+    try {
+      const res = await axiosInstance.delete(`/messages/${messageId}`);
+      toast.success(res.data.message);
+      set((state) => ({
+        messages: state.messages.filter((msg) => msg._id !== messageId),
+      }));
+
+      await get().getLastMessagesForUsers();
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Failed to delete message";
+      toast.error(errorMessage);
+    }
+  },
+  markMessagesAsRead: async (senderId: string) => {
+    try {
+      await axiosInstance.patch(`/messages/${senderId}/read-all`);
+      const socket = useAuthStore.getState().socket;
+      socket?.emit("messagesRead", { senderId });
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Failed to mark messages as read";
+      toast.error(errorMessage);
+    }
+  },
+
+  getUnreadCounts: async () => {
+    try {
+      const res = await axiosInstance.get<Record<string, number>>(
+        "/messages/unread-counts"
+      );
+      set({ unreadCountMap: res.data });
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Failed to fetch unread counts";
+      toast.error(errorMessage);
+    }
   },
 }));

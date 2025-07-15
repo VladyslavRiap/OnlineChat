@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import ChatHeader from "./ChatHeader";
 import { useChatStore } from "../store/useChatStore";
-
 import MessageInput from "./MessageInput";
 
-import toast from "react-hot-toast";
 import MeessageSkeleton from "./skeletons/MeessageSkeleton";
 import { ContextMenu } from "./ContextMenu";
 import { MessageItem } from "./MessageItem";
@@ -20,12 +18,12 @@ const ChatContainer = () => {
     unSubscribeFromMessages,
     deleteMessage,
     updateMessage,
+    markMessagesAsRead,
   } = useChatStore();
   const authUser = useAuthStore((state) => state.authUser);
 
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [contextMenu, setContextMenu] = useState({
     visible: false,
     x: 0,
@@ -37,42 +35,38 @@ const ChatContainer = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      const visualViewport = window.visualViewport;
-      if (visualViewport) {
-        setKeyboardHeight(window.innerHeight - visualViewport.height);
-      }
-    };
+    const run = async () => {
+      if (!selectedUser?._id) return;
 
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", handleResize);
-    }
+      const authUser = useAuthStore.getState().authUser;
+      if (!authUser) return;
 
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener("resize", handleResize);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (selectedUser?._id) {
-      getMessages(selectedUser._id);
       subscribeToMessages();
-      return () => unSubscribeFromMessages();
-    }
-  }, [
-    selectedUser?._id,
-    getMessages,
-    subscribeToMessages,
-    unSubscribeFromMessages,
-  ]);
+
+      await getMessages(selectedUser._id);
+
+      const msgs = useChatStore.getState().messages;
+      const hasUnread = msgs.some(
+        (msg) =>
+          msg.senderId === selectedUser._id &&
+          msg.receiverId === authUser._id &&
+          !msg.isRead
+      );
+
+      if (hasUnread) {
+        markMessagesAsRead(selectedUser._id);
+      }
+    };
+
+    run();
+    return () => unSubscribeFromMessages();
+  }, [selectedUser?._id]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "auto" });
-    });
-    return () => cancelAnimationFrame(frame);
+    const timer = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    }, 50);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   const handleContextMenu = (
@@ -99,16 +93,14 @@ const ChatContainer = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMessageId || !editText.trim()) return;
-
     await updateMessage(editingMessageId, editText);
     setEditingMessageId(null);
     setEditText("");
-    toast.success("Message updated");
   };
 
   const handleDelete = async (id: string) => {
     await deleteMessage(id);
-    toast.success("Message deleted");
+
     setContextMenu((prev) => ({ ...prev, visible: false }));
   };
 
@@ -122,15 +114,10 @@ const ChatContainer = () => {
   }
 
   return (
-    <div
-      className="flex-1 flex flex-col overflow-auto"
-      style={{
-        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight - 40}px` : "0",
-      }}
-    >
+    <div className="flex flex-1 flex-col h-full bg-base-300">
       <ChatHeader />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
         {messages.map((message) => (
           <MessageItem
             key={message._id}

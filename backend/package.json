@@ -23,6 +23,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "@types/node": "^24.0.13",
     "nodemon": "^3.1.10"
   }
 }
